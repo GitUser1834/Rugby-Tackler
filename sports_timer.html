@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sports Timer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin:0;
+    font-family: Arial;
+    background:#000;
+    color:white;
+}
+
+header img {
+    width:100%;
+    height:200px;
+    object-fit:cover;
+}
+
+.topbar {
+    background:#b30000;
+    padding:10px;
+    text-align:center;
+}
+
+.timer {
+    font-size:50px;
+    margin:10px;
+}
+
+button {
+    background:#b30000;
+    color:white;
+    border:none;
+    padding:10px;
+    margin:5px;
+    cursor:pointer;
+    border-radius:5px;
+}
+
+button:hover {
+    background:#ff1a1a;
+}
+
+input, select {
+    padding:8px;
+    margin:5px;
+}
+
+.nav {
+    text-align:center;
+    background:#111;
+    padding:10px;
+}
+
+.board {
+    display:none;
+    padding:10px;
+}
+
+.board.active {
+    display:block;
+}
+
+table {
+    width:100%;
+    border-collapse:collapse;
+}
+
+td {
+    border-bottom:1px solid #333;
+    padding:5px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<img src="file:///mnt/data/55c7f1bc-3a9e-4484-a9d2-50915d5afe87.png">
+</header>
+
+<div class="topbar">
+
+<div class="timer" id="timer">0.00</div>
+
+<button onclick="start()">Start</button>
+<button onclick="stop()">Stop</button>
+<button onclick="reset()">Reset</button>
+<button onclick="useTime()">Use Timer</button>
+
+<br>
+
+<input id="name" placeholder="Name">
+
+<select id="year">
+<option>7</option><option>8</option><option>9</option>
+<option>10</option><option>11</option><option>12</option>
+</select>
+
+<select id="gender">
+<option>Male</option>
+<option>Female</option>
+</select>
+
+<input id="manual" placeholder="Time (seconds)">
+
+<br>
+
+<button onclick="add()">Add Result</button>
+<button onclick="exportCSV()">Export CSV</button>
+
+</div>
+
+<div class="nav" id="nav"></div>
+
+<div id="boards"></div>
+
+<script>
+let results = JSON.parse(localStorage.getItem("results")||"[]");
+
+let startTime, interval, running=false;
+
+function start(){
+    if(running) return;
+    running=true;
+    startTime=Date.now();
+    interval=setInterval(()=>{
+        let t=(Date.now()-startTime)/1000;
+        timer.innerText=t.toFixed(2);
+    },10);
+}
+
+function stop(){
+    running=false;
+    clearInterval(interval);
+}
+
+function reset(){
+    running=false;
+    clearInterval(interval);
+    timer.innerText="0.00";
+}
+
+function useTime(){
+    document.getElementById("manual").value = timer.innerText;
+}
+
+function add(){
+    let name=document.getElementById("name").value;
+    let year=document.getElementById("year").value;
+    let gender=document.getElementById("gender").value;
+    let time=parseFloat(document.getElementById("manual").value);
+
+    if(!name || !time) return;
+
+    results.push({id:Date.now(),name,year,gender,time});
+    save();
+    render();
+    reset();
+}
+
+function save(){
+    localStorage.setItem("results",JSON.stringify(results));
+}
+
+function exportCSV(){
+    let csv="Name,Year,Gender,Time\n";
+    results.forEach(r=>{
+        csv+=`${r.name},${r.year},${r.gender},${r.time}\n`;
+    });
+
+    let blob=new Blob([csv],{type:"text/csv"});
+    let a=document.createElement("a");
+    a.href=URL.createObjectURL(blob);
+    a.download="results.csv";
+    a.click();
+}
+
+function getBoard(filter){
+    let list=results.filter(filter).sort((a,b)=>a.time-b.time);
+    if(!list.length) return [];
+
+    let lead=list[0].time;
+
+    return list.map((r,i)=>({
+        ...r,
+        rank:i+1,
+        gap:i===0?"Leader":"+"+(r.time-lead).toFixed(2)
+    }));
+}
+
+function render(){
+    let boardsHTML="";
+    let navHTML="";
+
+    let boards=[];
+
+    boards.push({title:"Male Overall", data:getBoard(r=>r.gender==="Male")});
+    boards.push({title:"Female Overall", data:getBoard(r=>r.gender==="Female")});
+
+    for(let y=7;y<=12;y++){
+        boards.push({title:`Year ${y} Male`, data:getBoard(r=>r.year==y && r.gender==="Male")});
+        boards.push({title:`Year ${y} Female`, data:getBoard(r=>r.year==y && r.gender==="Female")});
+    }
+
+    boards.forEach((b,i)=>{
+        navHTML+=`<button onclick="show(${i})">${b.title}</button>`;
+
+        let table="<table>";
+        b.data.forEach(r=>{
+            table+=`
+            <tr>
+                <td>${r.rank}</td>
+                <td>${r.name}</td>
+                <td>${r.time.toFixed(2)}</td>
+                <td>${r.gap}</td>
+                <td><button onclick="del(${r.id})">X</button></td>
+            </tr>`;
+        });
+        table+="</table>";
+
+        boardsHTML+=`<div class="board ${i===0?"active":""}" id="b${i}">
+        <h2>${b.title}</h2>${table}</div>`;
+    });
+
+    nav.innerHTML=navHTML;
+    boardsDiv.innerHTML=boardsHTML;
+}
+
+function show(i){
+    document.querySelectorAll(".board").forEach(b=>b.classList.remove("active"));
+    document.getElementById("b"+i).classList.add("active");
+}
+
+function del(id){
+    results=results.filter(r=>r.id!==id);
+    save();
+    render();
+}
+
+const boardsDiv=document.getElementById("boards");
+
+render();
+</script>
+
+</body>
+</html>

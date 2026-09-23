@@ -8,56 +8,104 @@
 <style>
 body {
     margin:0;
-    font-family: Arial;
+    font-family: Arial, sans-serif;
     background:#000;
     color:white;
 }
 
 header img {
     width:100%;
-    height:500px;
+    height:300px;
     object-fit:cover;
 }
 
 .topbar {
     background:#b30000;
-    padding:10px;
+    padding:15px;
     text-align:center;
 }
 
 .timer {
-    font-size:50px;
-    margin:10px;
+    font-size:64px;
+    font-weight: bold;
+    margin:15px 0;
+    font-family: monospace;
 }
 
+/* Bigger, easier to tap buttons */
 button {
     background:#b30000;
     color:white;
-    border:none;
-    padding:10px;
-    margin:5px;
+    border:2px solid #fff;
+    padding:12px 20px;
+    margin:6px 3px;
     cursor:pointer;
-    border-radius:5px;
+    border-radius:8px;
+    font-size:16px;
+    font-weight:bold;
+    min-height: 48px; /* Touch target minimum */
 }
 
-button:hover {
+button:hover, button:active {
     background:#ff1a1a;
 }
 
+/* Secondary controls inside topbar */
+.topbar button {
+    background: #800000;
+}
+
+.topbar button.action-btn {
+    background: #222;
+    border-color: #aaa;
+}
+
+/* Larger inputs & selects for quick entry */
 input, select {
-    padding:8px;
-    margin:5px;
+    padding:12px;
+    margin:6px 3px;
+    font-size:16px;
+    border-radius:6px;
+    border:1px solid #ccc;
+    box-sizing: border-box;
+}
+
+.input-group {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+    margin-top: 15px;
 }
 
 .nav {
     text-align:center;
     background:#111;
-    padding:10px;
+    padding:15px 10px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 8px;
+}
+
+.nav button {
+    background: #222;
+    border: 1px solid #444;
+    padding: 8px 14px;
+    font-size: 14px;
+    margin: 0;
+}
+
+.nav button.active-nav {
+    background: #b30000;
+    border-color: #fff;
 }
 
 .board {
     display:none;
-    padding:10px;
+    padding:20px;
+    max-width: 800px;
+    margin: 0 auto;
 }
 
 .board.active {
@@ -67,11 +115,27 @@ input, select {
 table {
     width:100%;
     border-collapse:collapse;
+    margin-top: 15px;
 }
 
-td {
+td, th {
     border-bottom:1px solid #333;
-    padding:5px;
+    padding:12px 8px;
+    text-align: left;
+    font-size: 16px;
+}
+
+th {
+    background: #111;
+    color: #aaa;
+}
+
+.btn-del {
+    background: #600;
+    border: none;
+    padding: 6px 12px;
+    min-height: auto;
+    font-size: 14px;
 }
 
 </style>
@@ -87,31 +151,47 @@ td {
 
 <div class="timer" id="timer">0.00</div>
 
-<button onclick="start()">Start</button>
-<button onclick="stop()">Stop</button>
-<button onclick="reset()">Reset</button>
-<button onclick="useTime()">Use Timer</button>
+<div>
+    <button onclick="start()">Start</button>
+    <button onclick="stop()">Stop</button>
+    <button onclick="reset()">Reset</button>
+    <button class="action-btn" onclick="useTime()">Use Timer</button>
+</div>
 
-<br>
+<div class="input-group">
+    <input id="name" placeholder="Name">
 
-<input id="name" placeholder="Name">
+    <select id="house">
+        <option value="">-- Select House --</option>
+        <option>Kimberley</option>
+        <option>Thuduc</option>
+        <option>Barlow</option>
+        <option>Bunuru</option>
+        <option>Lyon</option>
+        <option>Hannan</option>
+        <option>Normandy</option>
+        <option>Trinity</option>
+        <option>Carden</option>
+        <option>O'Reilly</option>
+    </select>
 
-<select id="year">
-<option>7</option><option>8</option><option>9</option>
-<option>10</option><option>11</option><option>12</option>
-</select>
+    <select id="year">
+        <option>7</option><option>8</option><option>9</option>
+        <option>10</option><option>11</option><option>12</option>
+    </select>
 
-<select id="gender">
-<option>Male</option>
-<option>Female</option>
-</select>
+    <select id="gender">
+        <option>Male</option>
+        <option>Female</option>
+    </select>
 
-<input id="manual" placeholder="Time (seconds)">
+    <input id="manual" type="number" step="0.01" placeholder="Time (seconds)">
+</div>
 
-<br>
-
-<button onclick="add()">Add Result</button>
-<button onclick="exportCSV()">Export CSV</button>
+<div style="margin-top: 10px;">
+    <button class="action-btn" onclick="add()">Add Result</button>
+    <button class="action-btn" onclick="exportCSV()">Export CSV</button>
+</div>
 
 </div>
 
@@ -120,6 +200,11 @@ td {
 <div id="boards"></div>
 
 <script>
+const HOUSES = [
+    "Kimberley", "Thuduc", "Barlow", "Bunuru", "Lyon",
+    "Hannan", "Normandy", "Trinity", "Carden", "O'Reilly"
+];
+
 let results = JSON.parse(localStorage.getItem("results")||"[]");
 
 let startTime, interval, running=false;
@@ -151,16 +236,22 @@ function useTime(){
 
 function add(){
     let name=document.getElementById("name").value;
+    let house=document.getElementById("house").value;
     let year=document.getElementById("year").value;
     let gender=document.getElementById("gender").value;
     let time=parseFloat(document.getElementById("manual").value);
 
-    if(!name || !time) return;
+    if(!name || !time || !house) {
+        alert("Please fill in Name, House, and Time.");
+        return;
+    }
 
-    results.push({id:Date.now(),name,year,gender,time});
+    results.push({id:Date.now(),name,house,year,gender,time});
     save();
     render();
     reset();
+    document.getElementById("name").value = "";
+    document.getElementById("manual").value = "";
 }
 
 function save(){
@@ -168,9 +259,239 @@ function save(){
 }
 
 function exportCSV(){
-    let csv="Name,Year,Gender,Time\n";
+    let csv="Name,House,Year,Gender,Time\n";
     results.forEach(r=>{
-        csv+=`${r.name},${r.year},${r.gender},${r.time}\n`;
+        csv+=`"${r.name}","${r.house}",${r.year},${Here is the updated code. The button sizes and touch targets have been increased for better usability, house selection has been added, and house leaderboards have been automatically generated.
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Sports Timer</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<style>
+body {
+    margin:0;
+    font-family: Arial, sans-serif;
+    background:#000;
+    color:white;
+}
+
+header img {
+    width:100%;
+    height:300px;
+    object-fit:cover;
+}
+
+.topbar {
+    background:#b30000;
+    padding:15px;
+    text-align:center;
+}
+
+.timer {
+    font-size:60px;
+    font-weight: bold;
+    margin:15px 0;
+}
+
+/* Made buttons and inputs significantly larger for easier tapping/clicking */
+button {
+    background:#b30000;
+    color:white;
+    border:2px solid #fff;
+    padding:12px 20px;
+    margin:6px;
+    font-size:16px;
+    font-weight:bold;
+    cursor:pointer;
+    border-radius:8px;
+}
+
+button:hover {
+    background:#ff1a1a;
+}
+
+input, select {
+    padding:12px;
+    margin:6px;
+    font-size:16px;
+    border-radius:6px;
+    border:none;
+}
+
+.nav {
+    text-align:center;
+    background:#111;
+    padding:15px;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 5px;
+}
+
+.nav button {
+    background: #222;
+    border: 1px solid #444;
+    padding: 10px 14px;
+    font-size: 14px;
+}
+
+.nav button:hover {
+    background: #444;
+}
+
+.board {
+    display:none;
+    padding:20px;
+    max-width: 800px;
+    margin: 0 auto;
+}
+
+.board.active {
+    display:block;
+}
+
+table {
+    width:100%;
+    border-collapse:collapse;
+    margin-top: 10px;
+}
+
+td, th {
+    border-bottom:1px solid #333;
+    padding:10px;
+    text-align: left;
+}
+
+.delete-btn {
+    background: #cc0000;
+    border: none;
+    padding: 6px 12px;
+    font-size: 14px;
+}
+
+</style>
+</head>
+
+<body>
+
+<header>
+<img src="[https://images.digistormhosting.com.au/eyJidWNrZXQiOiJkaWdpc3Rvcm0td2Vic2l0ZXMiLCJrZXkiOiJzaGMtYXUtd2EtMTYxOC13ZWJzaXRlLTIwMjUvY29udGVudC9QYWdlcy9BYm91dC1Vcy9UaGUtRm91ci1QaWxsYXJzL1Nwb3J0L1BpY3R1cmUtMS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJwb3NpdGlvbiI6ImNlbnRlciIsIndpZHRoIjoxMjgwLCJoZWlnaHQiOjg2Mn0sInF1YWxpdHkiOjg1LCJ0b0Zvcm1hdCI6IndlYnAifX0=](https://images.digistormhosting.com.au/eyJidWNrZXQiOiJkaWdpc3Rvcm0td2Vic2l0ZXMiLCJrZXkiOiJzaGMtYXUtd2EtMTYxOC13ZWJzaXRlLTIwMjUvY29udGVudC9QYWdlcy9BYm91dC1Vcy9UaGUtRm91ci1QaWxsYXJzL1Nwb3J0L1BpY3R1cmUtMS5qcGciLCJlZGl0cyI6eyJyZXNpemUiOnsiZml0IjoiY292ZXIiLCJwb3NpdGlvbiI6ImNlbnRlciIsIndpZHRoIjoxMjgwLCJoZWlnaHQiOjg2Mn0sInF1YWxpdHkiOjg1LCJ0b0Zvcm1hdCI6IndlYnAifX0=)" alt="The SHC rugby team">
+</header>
+
+<div class="topbar">
+
+<div class="timer" id="timer">0.00</div>
+
+<button onclick="start()">Start</button>
+<button onclick="stop()">Stop</button>
+<button onclick="reset()">Reset</button>
+<button onclick="useTime()">Use Timer</button>
+
+<br><br>
+
+<input id="name" placeholder="Name">
+
+<select id="year">
+<option value="" disabled selected>Year</option>
+<option>7</option><option>8</option><option>9</option>
+<option>10</option><option>11</option><option>12</option>
+</select>
+
+<select id="gender">
+<option>Male</option>
+<option>Female</option>
+</select>
+
+<select id="house">
+<option value="" disabled selected>House</option>
+<option>Kimberly</option>
+<option>Thuduc</option>
+<option>Barlow</option>
+<option>Bunuru</option>
+<option>Lyon</option>
+<option>Hannan</option>
+<option>Normandy</option>
+<option>Trinity</option>
+<option>Carden</option>
+<option>O'Reilly</option>
+</select>
+
+<input id="manual" placeholder="Time (seconds)" type="number" step="0.01">
+
+<br><br>
+
+<button onclick="add()">Add Result</button>
+<button onclick="exportCSV()">Export CSV</button>
+
+</div>
+
+<div class="nav" id="nav"></div>
+
+<div id="boards"></div>
+
+<script>
+let results = JSON.parse(localStorage.getItem("results")||"[]");
+const houses = ["Kimberly", "Thuduc", "Barlow", "Bunuru", "Lyon", "Hannan", "Normandy", "Trinity", "Carden", "O'Reilly"];
+
+let startTime, interval, running=false;
+
+function start(){
+    if(running) return;
+    running=true;
+    startTime=Date.now();
+    interval=setInterval(()=>{
+        let t=(Date.now()-startTime)/1000;
+        document.getElementById("timer").innerText=t.toFixed(2);
+    },10);
+}
+
+function stop(){
+    running=false;
+    clearInterval(interval);
+}
+
+function reset(){
+    running=false;
+    clearInterval(interval);
+    document.getElementById("timer").innerText="0.00";
+}
+
+function useTime(){
+    document.getElementById("manual").value = document.getElementById("timer").innerText;
+}
+
+function add(){
+    let name=document.getElementById("name").value;
+    let year=document.getElementById("year").value;
+    let gender=document.getElementById("gender").value;
+    let house=document.getElementById("house").value;
+    let time=parseFloat(document.getElementById("manual").value);
+
+    if(!name || !time || !house || !year) {
+        alert("Please fill in all fields (Name, Year, House, and Time).");
+        return;
+    }
+
+    results.push({id:Date.now(),name,year,gender,house,time});
+    save();
+    render();
+    reset();
+    document.getElementById("name").value = "";
+    document.getElementById("manual").value = "";
+}
+
+function save(){
+    localStorage.setItem("results",JSON.stringify(results));
+}
+
+function exportCSV(){
+    let csv="Name,Year,Gender,House,Time\n";
+    results.forEach(r=>{
+        csv+=`"${r.name}",${r.year},${r.gender},"${r.house}",${r.time}\n`;
     });
 
     let blob=new Blob([csv],{type:"text/csv"});
@@ -196,12 +517,18 @@ function getBoard(filter){
 function render(){
     let boardsHTML="";
     let navHTML="";
-
     let boards=[];
 
+    // Overall Leaderboards
     boards.push({title:"Male Overall", data:getBoard(r=>r.gender==="Male")});
     boards.push({title:"Female Overall", data:getBoard(r=>r.gender==="Female")});
 
+    // House Leaderboards
+    houses.forEach(h => {
+        boards.push({title:`House: ${h}`, data:getBoard(r=>r.house===h)});
+    });
+
+    // Year Group Leaderboards
     for(let y=7;y<=12;y++){
         boards.push({title:`Year ${y} Male`, data:getBoard(r=>r.year==y && r.gender==="Male")});
         boards.push({title:`Year ${y} Female`, data:getBoard(r=>r.year==y && r.gender==="Female")});
@@ -210,15 +537,16 @@ function render(){
     boards.forEach((b,i)=>{
         navHTML+=`<button onclick="show(${i})">${b.title}</button>`;
 
-        let table="<table>";
+        let table="<table><tr><th>Rank</th><th>Name</th><th>House</th><th>Time</th><th>Gap</th><th>Action</th></tr>";
         b.data.forEach(r=>{
             table+=`
             <tr>
                 <td>${r.rank}</td>
                 <td>${r.name}</td>
-                <td>${r.time.toFixed(2)}</td>
+                <td>${r.house}</td>
+                <td>${r.time.toFixed(2)}s</td>
                 <td>${r.gap}</td>
-                <td><button onclick="del(${r.id})">X</button></td>
+                <td><button class="delete-btn" onclick="del(${r.id})">X</button></td>
             </tr>`;
         });
         table+="</table>";
@@ -227,8 +555,8 @@ function render(){
         <h2>${b.title}</h2>${table}</div>`;
     });
 
-    nav.innerHTML=navHTML;
-    boardsDiv.innerHTML=boardsHTML;
+    document.getElementById("nav").innerHTML=navHTML;
+    document.getElementById("boards").innerHTML=boardsHTML;
 }
 
 function show(i){
@@ -241,8 +569,6 @@ function del(id){
     save();
     render();
 }
-
-const boardsDiv=document.getElementById("boards");
 
 render();
 </script>
